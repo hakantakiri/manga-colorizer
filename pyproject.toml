@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "manga-auto-colorist"
+version = "0.1.0"
+description = "Local-first CLI for batch manga page colorization."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Manga Auto Colorist" }]
+dependencies = [
+  "opencv-python>=4.8,<5",
+  "Pillow>=10.0,<12",
+  "click>=8.0,<8.2",
+  "typer>=0.12,<0.13",
+]
+
+[project.optional-dependencies]
+ml = ["torch>=2.1"]
+dev = ["pytest>=8.0,<9"]
+
+[project.scripts]
+manga-colorist = "manga_colorist.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "integration: requires local model weights or external model checkout",
+]
