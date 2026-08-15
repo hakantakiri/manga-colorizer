@@ -57,7 +57,11 @@ class MangaColorizationV2Colorizer(BaseColorizer):
             tmp_input = tmp_dir / request.input_path.name
             image.save(tmp_input)
 
-            command = [self.python, "inference.py", "-p", str(tmp_input)]
+            model_size = int(request.settings.get("model_size", 576))
+            if model_size % 32 != 0:
+                raise MangaColorizationV2SetupError("--model-size must be divisible by 32.")
+
+            command = [self.python, "inference.py", "-p", str(tmp_input), "-s", str(model_size)]
             if self.device == "cuda":
                 command.append("-g")
 

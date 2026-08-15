@@ -6,6 +6,7 @@ from pathlib import Path
 from manga_colorist.colorizers.base import BaseColorizer
 from manga_colorist.io import discover_images, load_normalized_rgb, output_path_for
 from manga_colorist.models import ColorizationRequest, ColorizationResult
+from manga_colorist.postprocess import preserve_resolution_color
 from manga_colorist.report import RunReport
 
 
@@ -46,10 +47,20 @@ def colorize_folder(
             device=device,
             settings=settings,
         )
+        details: dict = {}
 
         try:
             image = load_normalized_rgb(input_path)
-            colorized = colorizer.colorize(image, request).convert("RGB")
+            preserve_resolution = bool(settings.get("preserve_resolution", True))
+            details = {
+                "original_size": list(image.size),
+                "preserve_resolution": preserve_resolution,
+                "model_size": settings.get("model_size", 576),
+            }
+            model_output = colorizer.colorize(image, request).convert("RGB")
+            details["model_output_size"] = list(model_output.size)
+            colorized = preserve_resolution_color(image, model_output) if preserve_resolution else model_output
+            details["final_size"] = list(colorized.size)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             colorized.save(output_path)
             status = "success"
@@ -69,10 +80,10 @@ def colorize_folder(
                 warnings=warnings,
                 error=error,
                 model_metadata=report.model_metadata,
+                details=details,
             )
         )
 
     report.finish()
     report.write(output_dir / "run-report.json")
     return report
-

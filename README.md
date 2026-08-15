@@ -31,10 +31,12 @@ manga-colorist colorize --input ./pages --output ./colored --model manga-coloriz
 This workspace is already configured with an ignored local checkout under `.external/`, so you can run:
 
 ```bash
-MANGA_COLORIZATION_V2_PATH="$PWD/.external/manga-colorization-v2" MANGA_COLORIZATION_V2_PYTHON="$PWD/.external/manga-colorization-v2/.venv/bin/python" PYTHONPATH=src .venv/bin/manga-colorist colorize --input ./pages --output ./colored --device cpu --overwrite
+MANGA_COLORIZATION_V2_PATH="$PWD/.external/manga-colorization-v2" MANGA_COLORIZATION_V2_PYTHON="$PWD/.external/manga-colorization-v2/.venv/bin/python" PYTHONPATH=src .venv/bin/manga-colorist colorize --input ./pages --output ./colored --device cpu --overwrite --preserve-resolution
 ```
 
 The checkout must contain `inference.py`, `networks/generator.zip`, `networks/extractor.pth`, and `denoising/models/net_rgb.pth`.
+
+`--preserve-resolution` is enabled by default. It keeps the original page dimensions and high-resolution line art while transferring the model's generated color. Use `--no-preserve-resolution` only when you want the legacy lower-resolution model output. You can also tune upstream inference size with `--model-size 576`; the value must be divisible by 32.
 
 For pipeline tests only, there is an explicit debug adapter:
 

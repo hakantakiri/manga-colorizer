@@ -27,3 +27,4 @@ class ColorizationResult:
     warnings: list[str] = field(default_factory=list)
     error: str | None = None
     model_metadata: dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)

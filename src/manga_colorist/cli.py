@@ -39,6 +39,14 @@ def colorize(
     device: Annotated[DeviceOption, typer.Option("--device", help="Compute device.")] = DeviceOption.auto,
     model: Annotated[ModelOption, typer.Option("--model", help="Colorizer adapter to use.")] = ModelOption.manga_colorization_v2,
     overwrite: Annotated[bool, typer.Option("--overwrite", help="Regenerate pages even when outputs already exist.")] = False,
+    preserve_resolution: Annotated[
+        bool,
+        typer.Option(
+            "--preserve-resolution/--no-preserve-resolution",
+            help="Preserve original page dimensions and high-resolution line art.",
+        ),
+    ] = True,
+    model_size: Annotated[int, typer.Option("--model-size", help="Inference size for manga-colorization-v2; must be divisible by 32.")] = 576,
     reference_dir: Annotated[Path | None, typer.Option("--reference-dir", help="Reserved for future reference-guided coloring.")] = None,
     palette: Annotated[Path | None, typer.Option("--palette", help="Reserved for future manual palette coloring.")] = None,
 ) -> None:
@@ -46,6 +54,8 @@ def colorize(
         raise typer.BadParameter("--reference-dir is reserved for a future reference-guided mode and is not implemented in v1.")
     if palette is not None:
         raise typer.BadParameter("--palette is reserved for a future manual-palette mode and is not implemented in v1.")
+    if model_size <= 0 or model_size % 32 != 0:
+        raise typer.BadParameter("--model-size must be a positive integer divisible by 32.")
 
     try:
         selected_device = select_device(device.value)
@@ -61,6 +71,8 @@ def colorize(
         "selected_device": selected_device,
         "model": model.value,
         "overwrite": overwrite,
+        "preserve_resolution": preserve_resolution,
+        "model_size": model_size,
     }
     report = colorize_folder(
         input_dir=input,
