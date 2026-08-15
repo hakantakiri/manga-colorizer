@@ -130,7 +130,7 @@ After manual review, export clean cast metadata. The interactive Save button doe
 PYTHONPATH=src .venv/bin/manga-colorist export-cast --clusters ./cast-workspace/clusters.yaml --output ./cast-workspace/characters.yaml
 ```
 
-The current discovery pass uses local image heuristics and simple visual clustering. It is meant to propose useful review candidates, not to perfectly recognize every character automatically. The discovery files are intentionally model-agnostic so a MangaNinja, CLIP/OpenCLIP, or GroundingDINO/SAM backend can be added later without changing the review workspace.
+The current discovery pass uses local image heuristics and simple visual clustering. It is meant to propose useful review candidates, not to perfectly recognize every character automatically. The discovery files are intentionally model-agnostic so better detection, embedding, or reference-guided backends can be added later without changing the review workspace.
 
 ### Validation Rules
 
