@@ -67,3 +67,12 @@ def test_cli_default_model_requires_real_model_setup(tmp_path: Path) -> None:
 
     assert result.exit_code == 2
     assert "MANGA_COLORIZATION_V2_PATH is not set" in result.output
+
+
+def test_cli_includes_cast_review_commands() -> None:
+    result = CliRunner().invoke(app, ["--help"])
+
+    assert result.exit_code == 0
+    assert "discover-cast" in result.output
+    assert "review-cast" in result.output
+    assert "export-cast" in result.output

@@ -66,4 +66,3 @@ def test_colorize_folder_records_invalid_image_failure(tmp_path: Path) -> None:
 
     assert report.totals == {"success": 0, "skipped": 0, "failed": 1, "total": 1}
     assert report.results[0].error
-

@@ -8,7 +8,9 @@ import typer
 
 from manga_colorist.colorizers.factory import create_colorizer
 from manga_colorist.device import DeviceSelectionError, select_device
+from manga_colorist.discovery import discover_cast, export_reviewed_clusters
 from manga_colorist.pipeline import colorize_folder
+from manga_colorist.review_server import serve_review
 
 app = typer.Typer(no_args_is_help=True, help="Batch colorize manga page images.")
 
@@ -75,6 +77,54 @@ def colorize(
         f"{report.totals.get('failed', 0)} failed. "
         f"Report: {output.resolve() / 'run-report.json'}"
     )
+
+
+@app.command("discover-cast")
+def discover_cast_command(
+    input: Annotated[Path, typer.Option("--input", "-i", exists=True, file_okay=False, help="Folder of manga page images.")],
+    output: Annotated[Path, typer.Option("--output", "-o", help="Workspace folder for detections, crops, clusters, and review HTML.")],
+    max_candidates_per_page: Annotated[int, typer.Option("--max-candidates-per-page", help="Maximum proposed regions per page.")] = 8,
+    min_area_ratio: Annotated[float, typer.Option("--min-area-ratio", help="Minimum candidate area as a fraction of the page.")] = 0.015,
+    max_area_ratio: Annotated[float, typer.Option("--max-area-ratio", help="Maximum candidate area as a fraction of the page.")] = 0.45,
+    cluster_threshold: Annotated[float, typer.Option("--cluster-threshold", help="Cosine similarity threshold for grouping crops.")] = 0.88,
+) -> None:
+    result = discover_cast(
+        input_dir=input,
+        output_dir=output,
+        max_candidates_per_page=max_candidates_per_page,
+        min_area_ratio=min_area_ratio,
+        max_area_ratio=max_area_ratio,
+        cluster_threshold=cluster_threshold,
+    )
+    typer.echo(
+        "Done: "
+        f"{len(result.detections)} detections, "
+        f"{len(result.clusters)} clusters. "
+        f"Review: {output.resolve() / 'review.html'}"
+    )
+
+
+@app.command("export-cast")
+def export_cast_command(
+    clusters: Annotated[Path, typer.Option("--clusters", exists=True, dir_okay=False, help="Reviewed clusters.yaml file.")],
+    output: Annotated[Path, typer.Option("--output", "-o", help="characters.yaml path to write.")],
+) -> None:
+    character_bible = export_reviewed_clusters(clusters, output)
+    typer.echo(
+        "Done: "
+        f"{len(character_bible.get('characters', {}))} characters, "
+        f"{len(character_bible.get('pages', {}))} pages. "
+        f"Wrote: {output.resolve()}"
+    )
+
+
+@app.command("review-cast")
+def review_cast_command(
+    workspace: Annotated[Path, typer.Option("--workspace", "-w", exists=True, file_okay=False, help="Cast workspace created by discover-cast.")],
+    host: Annotated[str, typer.Option("--host", help="Host address for the local review server.")] = "127.0.0.1",
+    port: Annotated[int, typer.Option("--port", help="Port for the local review server.")] = 8765,
+) -> None:
+    serve_review(workspace=workspace, host=host, port=port)
 
 
 if __name__ == "__main__":
