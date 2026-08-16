@@ -2,49 +2,118 @@
 
 Local-first CLI for coloring folders of manga page images.
 
-## Install
+The default backend is [`manga-colorization-v2`](https://github.com/qweasdd/manga-colorization-v2). This repo wraps that model with batch processing, reports, resumable output, and high-resolution recomposition so the final pages keep the original dimensions and sharper line art.
 
-```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -e ".[dev,ml]"
-```
+## Quick Colorize Command
 
-`torch` is optional for the explicit `debug-tint` adapter, but required for real model adapters and device detection.
-
-## Usage
-
-```bash
-manga-colorist colorize --input ./pages --output ./colored --device auto
-```
-
-The command writes colorized RGB images to the output folder and a `run-report.json` with settings, timings, skipped pages, failures, and model metadata.
-
-V1 uses `manga-colorization-v2` by default. Set up a local checkout and weights first:
-
-```bash
-export MANGA_COLORIZATION_V2_PATH=/path/to/manga-colorization-v2
-export MANGA_COLORIZATION_V2_PYTHON=/path/to/manga-colorization-v2/venv/bin/python
-manga-colorist colorize --input ./pages --output ./colored --model manga-colorization-v2
-```
-
-This workspace is already configured with an ignored local checkout under `.external/`, so you can run:
+After completing the fresh clone setup below, this is the main command to run. Replace `./pages` with your input image folder and `./colored` with your desired output folder.
 
 ```bash
 MANGA_COLORIZATION_V2_PATH="$PWD/.external/manga-colorization-v2" MANGA_COLORIZATION_V2_PYTHON="$PWD/.external/manga-colorization-v2/.venv/bin/python" PYTHONPATH=src .venv/bin/manga-colorist colorize --input ./pages --output ./colored --device cpu --overwrite --preserve-resolution
 ```
 
-The checkout must contain `inference.py`, `networks/generator.zip`, `networks/extractor.pth`, and `denoising/models/net_rgb.pth`.
+The command writes colorized RGB images to the output folder and a `run-report.json` with settings, timings, skipped pages, failures, and model metadata.
 
-`--preserve-resolution` is enabled by default. It keeps the original page dimensions and high-resolution line art while transferring the model's generated color. Use `--no-preserve-resolution` only when you want the legacy lower-resolution model output. You can also tune upstream inference size with `--model-size 576`; the value must be divisible by 32.
+## Fresh Clone Setup
+
+This project uses two Python environments:
+
+- The project venv runs the `manga-colorist` CLI.
+- The external model venv runs `manga-colorization-v2/inference.py`.
+
+### 1. Install The CLI
+
+From the root of this repo, using Python 3.10 or newer:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install --upgrade pip
+.venv/bin/pip install -e ".[dev]"
+```
+
+The root project does not need PyTorch for the validated CPU command above. If you want local PyTorch device probing or future ML adapters in this wrapper, install the optional ML extra instead:
+
+```bash
+.venv/bin/pip install -e ".[dev,ml]"
+```
+
+### 2. Install The External Colorizer
+
+The external checkout is intentionally kept under ignored `.external/` so third-party code and large weights are not committed into this repo.
+
+```bash
+mkdir -p .external
+git clone https://github.com/qweasdd/manga-colorization-v2 .external/manga-colorization-v2
+python3 -m venv .external/manga-colorization-v2/.venv
+.external/manga-colorization-v2/.venv/bin/pip install --upgrade pip
+.external/manga-colorization-v2/.venv/bin/pip install -r .external/manga-colorization-v2/requirements.txt
+```
+
+`manga-colorization-v2` owns its own dependencies, including `torch`, `torchvision`, `opencv-python`, and `matplotlib`.
+
+### 3. Download Model Weights
+
+Follow the weight links in the upstream [`manga-colorization-v2` README](https://github.com/qweasdd/manga-colorization-v2). The upstream notes refer to generator/extractor weights and denoiser weights. This wrapper expects these files to exist:
+
+```text
+.external/manga-colorization-v2/networks/generator.zip
+.external/manga-colorization-v2/networks/extractor.pth
+.external/manga-colorization-v2/denoising/models/net_rgb.pth
+```
+
+Verify the setup before running colorization:
+
+```bash
+test -f .external/manga-colorization-v2/inference.py
+test -f .external/manga-colorization-v2/networks/generator.zip
+test -f .external/manga-colorization-v2/networks/extractor.pth
+test -f .external/manga-colorization-v2/denoising/models/net_rgb.pth
+```
+
+You can export the model paths once per terminal session:
+
+```bash
+export MANGA_COLORIZATION_V2_PATH="$PWD/.external/manga-colorization-v2"
+export MANGA_COLORIZATION_V2_PYTHON="$PWD/.external/manga-colorization-v2/.venv/bin/python"
+```
+
+Then the shorter command is:
+
+```bash
+PYTHONPATH=src .venv/bin/manga-colorist colorize --input ./pages --output ./colored --device cpu --overwrite --preserve-resolution
+```
+
+## Usage
+
+Basic colorization after exporting `MANGA_COLORIZATION_V2_PATH` and `MANGA_COLORIZATION_V2_PYTHON`:
+
+```bash
+PYTHONPATH=src .venv/bin/manga-colorist colorize --input ./pages --output ./colored --device cpu
+```
+
+Supported input image extensions:
+
+```text
+.png .jpg .jpeg .webp .tif .tiff
+```
+
+Outputs are naturally sorted by filename and use the same base filenames in the output folder. Re-running skips already successful outputs unless `--overwrite` is passed.
 
 For pipeline tests only, there is an explicit debug adapter:
 
 ```bash
-manga-colorist colorize --input ./pages --output ./colored --model debug-tint
+PYTHONPATH=src .venv/bin/manga-colorist colorize --input ./pages --output ./colored --model debug-tint
 ```
 
 `debug-tint` is not real manga colorization.
+
+## Preserve Resolution
+
+`--preserve-resolution` is enabled by default. It keeps the original page dimensions and high-resolution line art while transferring the model's generated color. Use `--no-preserve-resolution` only when you want the legacy lower-resolution model output.
+
+You can tune upstream inference size with `--model-size 576`; the value must be divisible by 32. `--model-size` is passed to `manga-colorization-v2` as its `-s` argument. `--preserve-resolution` is handled by this wrapper after the model finishes.
+
+For the detailed engineering explanation, see [`docs/preserve-resolution.md`](docs/preserve-resolution.md).
 
 ## Cast Review Workspace
 
@@ -56,7 +125,7 @@ Run discovery:
 PYTHONPATH=src .venv/bin/manga-colorist discover-cast --input ./pages --output ./cast-workspace
 ```
 
-This creates:
+`discover-cast` generates the whole review workspace:
 
 - `cast-workspace/crops/`: proposed character appearance crops.
 - `cast-workspace/detections.json`: machine-readable detections with page names, boxes, confidence, crop paths, and cluster IDs.
@@ -90,7 +159,7 @@ In the review UI you can:
 - Uncheck `approved` for false positives.
 - Press Save to update `clusters.yaml` and regenerate `characters.yaml`.
 
-`review.html` is still available as a read-only contact sheet if you only want to inspect the detections.
+`review.html` is generated by `discover-cast` and remains available as a read-only contact sheet if you only want to inspect the detections.
 
 ### Reviewing `clusters.yaml` Manually
 
@@ -140,7 +209,45 @@ The current discovery pass uses local image heuristics and simple visual cluster
 - `relative_xy` values must be between `0.0` and `1.0`.
 - `radius` must be a positive integer.
 - Boxes must use positive width and height.
-- Page names must match files in `./pages` exactly.
+- Page names must match files in the folder you are processing exactly.
+
+## Reusable Batch Task
+
+For coloring a full manga parent folder, copying excluded pages unchanged, and creating flat `.cbz` archives per chapter, see [`tasks/color-by-manga-folder.md`](tasks/color-by-manga-folder.md).
+
+## Generated Files And Git Ignore
+
+These folders are local/generated and intentionally should not be committed:
+
+- `.external/`: third-party model checkout and weights.
+- `.cache/` and `.pytest_cache/`: local caches.
+- `cast-workspace/`: generated cast review data.
+- `colored*/`: local colorized outputs.
+- Local input folders such as `pages/`, unless you intentionally add your own sample images.
+
+It is safe to delete `cast-workspace/` if you do not need the current review progress. Regenerate it later with `discover-cast`.
+
+## Troubleshooting
+
+`Setup error: MANGA_COLORIZATION_V2_PATH is not set`
+
+Set `MANGA_COLORIZATION_V2_PATH` and `MANGA_COLORIZATION_V2_PYTHON`, or use the full quick command at the top of this README.
+
+`Missing manga-colorization-v2 weight`
+
+Check that the three required weight files exist at the exact paths listed in the setup section.
+
+`--device auto` fails on Apple Silicon/MPS
+
+The current `manga-colorization-v2` adapter is validated for CPU and CUDA, not MPS. On Apple Silicon, use `--device cpu`.
+
+Output looks lower-resolution than the source
+
+Use the default `--preserve-resolution` mode. If you passed `--no-preserve-resolution`, the output is the external model's lower-resolution result.
+
+No images were processed
+
+Check that the input folder contains supported image files directly inside that folder. This CLI does not process PDFs, CBZ files, or nested folders in v1.
 
 ## Reserved Future Controls
 
